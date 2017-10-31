@@ -1,33 +1,29 @@
 db_uri: 'mysql+pymysql://admin:admin@172.17.0.2:3306/stock'
 
 
-# 根据大单数据 模拟计算那种组合可以获得收益
-# 选择股票时的条件
-# eg: ' ltsz < 100 '
+
 candidate_code_condition: 'ltsz <= 100 and pe > 0 and pe < 40'
-est_begin_date: '2017-10-30'
-est_count_start: 3
-est_count_step: 2
-est_count_end: 20
+est_begin_date: '2017-10-31'
+est_count_start: 5
+est_count_step: 5
+est_count_end: 25
 
-# 500w 到 5000w
-est_valve_start: 500
+
+est_valve_start: 1000
 est_valve_step: 500
-est_valve_end: 5500
+est_valve_end: 2500
 
 
-# 实时数据
 
-# 成交金额大于多少算是大单,默认 50w
 dadan_valve: 500000
 
 
-# 发送微信消息
+
 msg_send_to: 'eagle'
 corpid: 'wx3b381e28fa3192c4'
 secret: 'pdCl8v48qRM3XjzzHEnmwGnXcLuKliFoZhq-I7PtALo'
 
-# 趋势图相关
+
 html_file_name: '/var/www/html/index.nginx-debian.html'
 image_save_path: '/var/www/html/'
 qushi_valve_amount: 50000000

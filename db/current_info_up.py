@@ -2,7 +2,7 @@
 
 import easyquotation
 import easyutils
-from model import StockCurrentInfo, get_session
+from cquant.db.model import StockCurrentInfo, get_session
 
 
 def up():

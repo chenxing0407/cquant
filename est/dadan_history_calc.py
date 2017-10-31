@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from db.model import StockDaDantHistory, EstProfit, get_session, \
+from cquant.db.model import StockDaDantHistory, EstProfit, get_session, \
     StockCurrentInfo
-from utils.config import cfg
+from cquant.utils.config import cfg
 
 from datetime import datetime
 from sqlalchemy import desc, text
@@ -85,7 +85,6 @@ def calc_history_method1(c, d, count=10, valve=5000000):
 
 
 if __name__ == '__main__':
-    # print(get_cand_code())
     date = datetime.now().strftime('%Y-%m-%d')
     date_list = pd.date_range(cfg['est_begin_date'], pd.datetime.today()).tolist()
     trade_day = [d.date().strftime('%Y-%m-%d') for d in date_list if
@@ -93,13 +92,12 @@ if __name__ == '__main__':
     code_list = get_cand_code()
     for code in code_list:
         for d in trade_day:
-            calc_history_method1(code, d,
-                                 count=range(3, 20, 2),
-                                 valve=range(500, 5500, 500))
-            # calc_history_method1(code, d, count=10, valve=1000 * 10000)
-            # calc_history_method1(code, d, count=10, valve=2000 * 10000)
-            # calc_history_method1(code, d, count=10, valve=500 * 10000)
-
-            # calc_history_method1(code, d, count=5, valve=1000 * 10000)
-            # calc_history_method1(code, d, count=5, valve=2000 * 10000)
-            # calc_history_method1(code, d, count=5, valve=500 * 10000)
+            calc_history_method1(
+                code, d,
+                count=range(cfg['est_count_start'],
+                            cfg['est_count_end'],
+                            cfg['est_count_step']),
+                valve=range(cfg['est_valve_start'],
+                            cfg['est_valve_end'],
+                            cfg['est_valve_step'])
+            )

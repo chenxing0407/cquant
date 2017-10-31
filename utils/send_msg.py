@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from config import cfg
+from cquant.utils.config import cfg
 
 import json
 import traceback

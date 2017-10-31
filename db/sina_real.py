@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from utils.config import cfg
-from .model import get_session
-from .model import StockDaDantHistory
+from cquant.utils.config import cfg
+from cquant.db.model import get_session, StockDaDantHistory
 
 import easyquotation
 import time
@@ -18,7 +17,7 @@ KP2 = NOW.replace(hour=13, minute=0)
 TEN = NOW.replace(hour=10, minute=15)
 THREE = NOW.replace(hour=15, minute=1)
 
-VALVE = cfg['valve']
+VALVE = cfg['dadan_valve']
 
 
 # t 类型（B/S)
@@ -70,7 +69,7 @@ def get_real(candi):
     sina = easyquotation.use('sina')
     count = 0
     while True:
-        if count/30 == 0:
+        if count % 30 == 0:
             print('now is %s, count is %s' % (time.ctime(), count))
         count += 1
         now = datetime.datetime.now()

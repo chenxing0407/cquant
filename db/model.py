@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from utils.config import cfg
+from cquant.utils.config import cfg
 
 from sqlalchemy import Column, String, Date, DateTime, Float, Integer, Time
 import sqlalchemy

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from .model import DanDanQushi, get_session, get_engine
-from utils.send_msg import send_msg
-from utils.config import cfg
+from cquant.db.model import DanDanQushi, get_session, get_engine
+from cquant.utils.send_msg import send_msg
+from cquant.utils.config import cfg
 
 
 import pandas as pd
@@ -127,7 +127,7 @@ def calc_fun():
               % date.today().strftime('%Y-%m-%d')
     count = 0
     while True:
-        if count / 30 == 0:
+        if count % 30 == 0:
             print('sleep in sql %s' % datetime.now())
         count += 1
         try:
