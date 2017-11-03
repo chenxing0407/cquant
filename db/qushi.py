@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import easyutils
 from cquant.db.model import DanDanQushi, get_session, get_engine
 from cquant.utils.send_msg import send_msg
 from cquant.utils.config import cfg
@@ -121,33 +121,38 @@ def calc(data):
 
 
 def calc_fun():
-    sql_cmd = 'select sum(count*price) as s ,type, code from ' \
-              'stock_dadan_history where date="%s" group by ' \
-              'type, code order by code, s desc;' \
-              % date.today().strftime('%Y-%m-%d')
-    count = 0
     while True:
-        if count % 30 == 0:
-            print('sleep in sql %s' % datetime.now())
-        count += 1
-        try:
-            now = datetime.now()
-            while now < KP:
-                time.sleep(2)
-                now = datetime.now()
+        now = datetime.now()
+        count = 0
+        if not easyutils.is_holiday(now.strftime('%Y%m%d')):
+            sql_cmd = 'select sum(count*price) as s ,type, code from ' \
+                      'stock_dadan_history where date="%s" group by ' \
+                      'type, code order by code, s desc;' \
+                      % date.today().strftime('%Y-%m-%d')
+            if count % 30 == 0:
+                print('sleep in sql %s' % datetime.now())
+            count += 1
+            try:
+                while now < KP:
+                    time.sleep(2)
+                    now = datetime.now()
 
-            while LUNCH < now < KP2:
-                time.sleep(2)
-                now = datetime.now()
-            if now > THREE:
-                time.sleep(600)
+                while LUNCH < now < KP2:
+                    time.sleep(2)
+                    now = datetime.now()
+                if now > THREE:
+                    time.sleep(600)
 
-            df_mysql = pd.read_sql(sql_cmd, con=get_engine())
-            calc(df_mysql)
-            time.sleep(5)
-        except Exception as e:
-            print(e)
-            continue
+                df_mysql = pd.read_sql(sql_cmd, con=get_engine())
+                calc(df_mysql)
+                time.sleep(5)
+            except Exception as e:
+                print(e)
+                continue
+        else:
+            print('now %s is holiday, sleeping ...' % now)
+            time.sleep(24 * 3600)
+            count = 0
 
 
 if __name__ == '__main__':

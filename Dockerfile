@@ -9,6 +9,4 @@ RUN wget https://www.python.org/ftp/python/3.6.3/Python-3.6.3.tar.xz && tar -xvf
 
 RUN pip3 install requests six && pip3 install aiohttp easyutils && pip3 install PyYAML PyMySQL SQLAlchemy pandas matplotlib  easyquotation easytrader && find /usr/local/lib/python3.6/ -name "*pyc"  -delete
 
-ADD . /usr/local/lib/python3.6/site-packages/cquant
-
-
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime

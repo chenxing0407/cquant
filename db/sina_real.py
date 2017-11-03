@@ -2,6 +2,7 @@
 
 from cquant.utils.config import cfg
 from cquant.db.model import get_session, StockDaDantHistory
+from cquant.est.dadan_history_calc import get_cand_code
 
 import easyquotation
 import time
@@ -73,93 +74,102 @@ def get_real(candi):
             print('now is %s, count is %s' % (time.ctime(), count))
         count += 1
         now = datetime.datetime.now()
-        while now < KP:
-            time.sleep(2)
-            now = datetime.datetime.now()
+        if not easyutils.is_holiday(now.strftime('%Y%m%d')):
+            while now < KP:
+                time.sleep(2)
+                now = datetime.datetime.now()
 
-        while LUNCH <now < KP2:
-            time.sleep(2)
-            now = datetime.datetime.now()
-        if now > THREE:
-            time.sleep(600)
+            while LUNCH <now < KP2:
+                time.sleep(2)
+                now = datetime.datetime.now()
+            if now > THREE:
+                time.sleep(600)
 
-        for code, st in sina.stocks(candi).items():
-            try:
-                if st['name'] not in last_check:
-                    last_check[st['name']] = {}
-                    last_check[st['name']]['turnover'] = st['turnover']
-                    last_check[st['name']]['now'] = st['now']
-                    last_check[st['name']]['buy'] = st['buy']
-                    last_check[st['name']]['sell'] = st['sell']
-                    last_check[st['name']]['rec'] = [] # 详细记录
-
-                else:
-                    # no change
-                    if last_check[st['name']]['turnover'] == st['turnover']:
-                        pass
-                    else:
-                        diff = st['turnover'] - \
-                               last_check[st['name']]['turnover']
-
-                        # TODO 准确性检查
-
-                        # 价格无变动
-                        if st['now'] == last_check[st['name']]['now']:
-                            if st['now'] == st['buy']:
-                                if st['buy'] > last_check[st['name']]['buy']:
-                                    if st['now'] * diff > VALVE:  # 发出买入指令
-                                        add_to_db(code, 'B', diff, st)
-                                else:
-                                    if st['now'] * diff > VALVE:  # 发出卖出指令
-                                        add_to_db(code, 'S', diff, st)
-
-                            if st['now'] == st['sell']:
-                                if st['now'] * diff > VALVE:  # 发出买入指令
-                                    add_to_db(code, 'B', diff, st)
-
-                        # 价格减少
-                        elif st['now'] < last_check[st['name']]['now']:
-                            if st['now'] == st['sell']:
-                                if st['sell'] < last_check[st['name']]['sell']:
-                                    if st['now'] * diff > VALVE:  # 发出卖出指令
-                                        add_to_db(code, 'S', diff, st)
-
-                                else:
-                                    pass
-                            else:
-                                # todo now == buy
-                                if st['now'] * diff > VALVE:  # 发出卖出指令
-                                    add_to_db(code, 'S', diff, st)
-
-                        # 价格增加
-                        else:
-                            if not (st['sell'] <
-                                    last_check[st['name']]['sell']):
-                                if st['now'] * diff > VALVE:  # 发出买入指令
-                                    add_to_db(code, 'B', diff, st)
-                            else:
-                                pass
-
-                        # 更新最新的数据
+            for code, st in sina.stocks(candi).items():
+                try:
+                    if st['name'] not in last_check:
+                        last_check[st['name']] = {}
                         last_check[st['name']]['turnover'] = st['turnover']
                         last_check[st['name']]['now'] = st['now']
                         last_check[st['name']]['buy'] = st['buy']
                         last_check[st['name']]['sell'] = st['sell']
-            except Exception as e:
-                print(e)
-                continue
+                        last_check[st['name']]['rec'] = [] # 详细记录
 
-        time.sleep(2)
+                    else:
+                        # no change
+                        if last_check[st['name']]['turnover'] == st['turnover']:
+                            pass
+                        else:
+                            diff = st['turnover'] - \
+                                   last_check[st['name']]['turnover']
+
+                            # TODO 准确性检查
+
+                            # 价格无变动
+                            if st['now'] == last_check[st['name']]['now']:
+                                if st['now'] == st['buy']:
+                                    if st['buy'] > last_check[st['name']]['buy']:
+                                        if st['now'] * diff > VALVE:  # 发出买入指令
+                                            add_to_db(code, 'B', diff, st)
+                                    else:
+                                        if st['now'] * diff > VALVE:  # 发出卖出指令
+                                            add_to_db(code, 'S', diff, st)
+
+                                if st['now'] == st['sell']:
+                                    if st['now'] * diff > VALVE:  # 发出买入指令
+                                        add_to_db(code, 'B', diff, st)
+
+                            # 价格减少
+                            elif st['now'] < last_check[st['name']]['now']:
+                                if st['now'] == st['sell']:
+                                    if st['sell'] < last_check[st['name']]['sell']:
+                                        if st['now'] * diff > VALVE:  # 发出卖出指令
+                                            add_to_db(code, 'S', diff, st)
+
+                                    else:
+                                        pass
+                                else:
+                                    # todo now == buy
+                                    if st['now'] * diff > VALVE:  # 发出卖出指令
+                                        add_to_db(code, 'S', diff, st)
+
+                            # 价格增加
+                            else:
+                                if not (st['sell'] <
+                                        last_check[st['name']]['sell']):
+                                    if st['now'] * diff > VALVE:  # 发出买入指令
+                                        add_to_db(code, 'B', diff, st)
+                                else:
+                                    pass
+
+                            # 更新最新的数据
+                            last_check[st['name']]['turnover'] = st['turnover']
+                            last_check[st['name']]['now'] = st['now']
+                            last_check[st['name']]['buy'] = st['buy']
+                            last_check[st['name']]['sell'] = st['sell']
+                except Exception as e:
+                    print(e)
+                    continue
+
+            time.sleep(2)
+        else:
+            print('now %s is holiday, sleeping ...' % now)
+            time.sleep(24*3600)
+            count = 0
 
 
 if __name__ == '__main__':
     easyquotation.update_stock_codes()
     sina_api = easyquotation.use('sina')
-    stock_codes = sina_api.load_stock_codes()
+    # stock_codes = sina_api.load_stock_codes()
+    # stock_with_exchange_list = [easyutils.stock.get_stock_type(code) +
+    #                             code[-6:]
+    #                             for code in stock_codes
+    #                             if code.startswith(('00', '30', '60'))]
+
     stock_with_exchange_list = [easyutils.stock.get_stock_type(code) +
-                                code[-6:]
-                                for code in stock_codes
-                                if code.startswith(('00', '30', '60'))]
+                                code
+                                for code in get_cand_code()]
 
     request_num = len(stock_with_exchange_list)
     max_num = 400
