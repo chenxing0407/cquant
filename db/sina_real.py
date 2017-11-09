@@ -11,12 +11,6 @@ import datetime
 import easyutils
 
 last_check = {}
-NOW = datetime.datetime.now()
-KP = NOW.replace(hour=9, minute=25)
-LUNCH = NOW.replace(hour=11, minute=30)
-KP2 = NOW.replace(hour=13, minute=0)
-TEN = NOW.replace(hour=10, minute=15)
-THREE = NOW.replace(hour=15, minute=1)
 
 VALVE = cfg['dadan_valve']
 
@@ -68,98 +62,115 @@ else:
 
 def get_real(candi):
     sina = easyquotation.use('sina')
-    count = 0
     while True:
-        if count % 30 == 0:
-            print('now is %s, count is %s' % (time.ctime(), count))
-        count += 1
         now = datetime.datetime.now()
+        kp = now.replace(hour=9, minute=25)
+        lunch = now.replace(hour=11, minute=30)
+        kp2 = now.replace(hour=13, minute=0)
+        three = now.replace(hour=15, minute=1)
+
         if not easyutils.is_holiday(now.strftime('%Y%m%d')):
-            while now < KP:
-                time.sleep(2)
+            previous_day = now.strftime('%d')
+            count = 0
+            while True:
                 now = datetime.datetime.now()
+                if count % 30 == 0:
+                    print('now is %s, count is %s' % (time.ctime(), count))
+                count += 1
 
-            while LUNCH <now < KP2:
-                time.sleep(2)
-                now = datetime.datetime.now()
-            if now > THREE:
-                time.sleep(600)
+                while now < kp:
+                    time.sleep(10)
+                    now = datetime.datetime.now()
 
-            for code, st in sina.stocks(candi).items():
-                try:
-                    if st['name'] not in last_check:
-                        last_check[st['name']] = {}
-                        last_check[st['name']]['turnover'] = st['turnover']
-                        last_check[st['name']]['now'] = st['now']
-                        last_check[st['name']]['buy'] = st['buy']
-                        last_check[st['name']]['sell'] = st['sell']
-                        last_check[st['name']]['rec'] = [] # 详细记录
+                while lunch < now < kp2:
+                    time.sleep(10)
+                    now = datetime.datetime.now()
 
-                    else:
-                        # no change
-                        if last_check[st['name']]['turnover'] == st['turnover']:
-                            pass
-                        else:
-                            diff = st['turnover'] - \
-                                   last_check[st['name']]['turnover']
+                while now > three:
+                    print('now is %s， not holiday' % (time.ctime(), count))
+                    time.sleep(60)
+                    now = datetime.datetime.now()
 
-                            # TODO 准确性检查
+                current_day = now.strftime('%d')
+                if current_day != previous_day:
+                    break
 
-                            # 价格无变动
-                            if st['now'] == last_check[st['name']]['now']:
-                                if st['now'] == st['buy']:
-                                    if st['buy'] > last_check[st['name']]['buy']:
-                                        if st['now'] * diff > VALVE:  # 发出买入指令
-                                            add_to_db(code, 'B', diff, st)
-                                    else:
-                                        if st['now'] * diff > VALVE:  # 发出卖出指令
-                                            add_to_db(code, 'S', diff, st)
-
-                                if st['now'] == st['sell']:
-                                    if st['now'] * diff > VALVE:  # 发出买入指令
-                                        add_to_db(code, 'B', diff, st)
-
-                            # 价格减少
-                            elif st['now'] < last_check[st['name']]['now']:
-                                if st['now'] == st['sell']:
-                                    if st['sell'] < last_check[st['name']]['sell']:
-                                        if st['now'] * diff > VALVE:  # 发出卖出指令
-                                            add_to_db(code, 'S', diff, st)
-
-                                    else:
-                                        pass
-                                else:
-                                    # todo now == buy
-                                    if st['now'] * diff > VALVE:  # 发出卖出指令
-                                        add_to_db(code, 'S', diff, st)
-
-                            # 价格增加
-                            else:
-                                if not (st['sell'] <
-                                        last_check[st['name']]['sell']):
-                                    if st['now'] * diff > VALVE:  # 发出买入指令
-                                        add_to_db(code, 'B', diff, st)
-                                else:
-                                    pass
-
-                            # 更新最新的数据
+                for code, st in sina.stocks(candi).items():
+                    try:
+                        if st['name'] not in last_check:
+                            last_check[st['name']] = {}
                             last_check[st['name']]['turnover'] = st['turnover']
                             last_check[st['name']]['now'] = st['now']
                             last_check[st['name']]['buy'] = st['buy']
                             last_check[st['name']]['sell'] = st['sell']
-                except Exception as e:
-                    print(e)
-                    continue
 
-            time.sleep(2)
+                        else:
+                            # no change
+                            if last_check[st['name']]['turnover'] == st['turnover']:
+                                pass
+                            else:
+                                diff = st['turnover'] - \
+                                       last_check[st['name']]['turnover']
+
+                                # TODO 准确性检查
+
+                                # 价格无变动
+                                if st['now'] == last_check[st['name']]['now']:
+                                    if st['now'] == st['buy']:
+                                        if st['buy'] > last_check[st['name']]['buy']:
+                                            if st['now'] * diff > VALVE:  # 发出买入指令
+                                                add_to_db(code, 'B', diff, st)
+                                        else:
+                                            if st['now'] * diff > VALVE:  # 发出卖出指令
+                                                add_to_db(code, 'S', diff, st)
+
+                                    if st['now'] == st['sell']:
+                                        if st['now'] * diff > VALVE:  # 发出买入指令
+                                            add_to_db(code, 'B', diff, st)
+
+                                # 价格减少
+                                elif st['now'] < last_check[st['name']]['now']:
+                                    if st['now'] == st['sell']:
+                                        if st['sell'] < last_check[st['name']]['sell']:
+                                            if st['now'] * diff > VALVE:  # 发出卖出指令
+                                                add_to_db(code, 'S', diff, st)
+
+                                        else:
+                                            pass
+                                    else:
+                                        # todo now == buy
+                                        if st['now'] * diff > VALVE:  # 发出卖出指令
+                                            add_to_db(code, 'S', diff, st)
+
+                                # 价格增加
+                                else:
+                                    if not (st['sell'] <
+                                            last_check[st['name']]['sell']):
+                                        if st['now'] * diff > VALVE:  # 发出买入指令
+                                            add_to_db(code, 'B', diff, st)
+                                    else:
+                                        pass
+
+                                # 更新最新的数据
+                                last_check[st['name']]['turnover'] = st['turnover']
+                                last_check[st['name']]['now'] = st['now']
+                                last_check[st['name']]['buy'] = st['buy']
+                                last_check[st['name']]['sell'] = st['sell']
+                    except Exception as e:
+                        print(e)
+                        continue
+
+                time.sleep(2)
         else:
-            print('now %s is holiday, sleeping ...' % now)
-            time.sleep(24*3600)
-            count = 0
+            while True:
+                now = datetime.datetime.now()
+                print('now %s is holiday, sleeping ...' % now)
+                time.sleep(60)
+                if not easyutils.is_holiday(now.strftime('%Y%m%d')):
+                    break
 
 
 if __name__ == '__main__':
-    easyquotation.update_stock_codes()
     sina_api = easyquotation.use('sina')
     # stock_codes = sina_api.load_stock_codes()
     # stock_with_exchange_list = [easyutils.stock.get_stock_type(code) +
