@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from cquant.utils.config import cfg
-from cquant.db.model import get_session,
+from cquant.db.model import get_session,StockDaDantHistory2
 from cquant.est.dadan_history_calc import get_cand_code
 
 import easyquotation
