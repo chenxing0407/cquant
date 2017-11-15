@@ -47,69 +47,40 @@ S2 = '''
 fname = cfg['html_file_name']
 
 
-def save_qushi(res):
-    objs = []
-    for x in res:
-        objs.append(DanDanQushi(
-            code=x, amount=res[x], date=date.today(),
-            time=datetime.now().strftime('%H:%M')))
+def save_qushi():
+    n1 = datetime.now().replace(hour=0)
+    n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
     ss = get_session()
-    ss.bulk_save_objects(objs)
+    cmd = 'insert into stock_dadan_qushi2(code, amount) select code, sum(amount) from ' \
+          'stock_dadan_history2 where timestamp >"%s" group by code' % n1str
+    ss.execute(cmd)
 
 
 def plt_qushi(code):
-    sql_cmd = 'select time, amount from stock_dadan_qushi ' \
-              'where date="%s" and code="%s"' \
-              % (date.today().strftime('%Y-%m-%d'), code)
+    n1 = datetime.now().replace(hour=0)
+    n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
+    sql_cmd = 'select timestamp, amount from stock_dadan_qushi2 ' \
+              'where code="%s" and timestamp >"%s"  ' \
+              % (code, n1str)
     qs = pd.read_sql(sql_cmd, con=get_engine())
-    pd.Series(data=list(qs.amount), index=qs.time).plot()
+    pd.Series(data=list(qs.amount), index=qs.timestamp).plot()
     plt.savefig(cfg['image_save_path'] +'%s.png' % code)
     plt.close()
 
 
-def calc(data):
-    res = {}
-    for index, row in data.iterrows():
-        amount = row.s
-        t = row.type
-        code = row.code
-        if code not in res:
-            res[code] = {}
-            res[code]['diff'] = 0
-            if t == 'B':
-                res[code]['diff'] += amount
-            else:
-                res[code]['diff'] -= amount
-            res[code][t] = amount
-        else:
-            if t == 'B':
-                res[code]['diff'] += amount
-            else:
-                res[code]['diff'] -= amount
-            res[code][t] = amount
+def calc():
+    save_qushi()
 
-    final_res = {}
-    for x in res:
-        final_res[x] = res[x]['diff']
-    save_qushi(final_res)
-
-    sr = sorted(final_res.items(), key=lambda d: -d[1])
-    now = datetime.now()
+    valve = 1
+    n1 = datetime.now().replace(hour=0)
+    n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
+    ss = get_session()
+    cmd = 'select code, sum(amount) as amount from stock_dadan_qushi2 where timestamp >"%s" and amount >%f group by code order by amount' % (n1str, valve)
+    res = ss.execute(cmd)
     msg = []
-    for x in sr:
-        if x[1] > VALVE_AMOUNT and x[0] not in send_map:
-            msg.append('%s, %s' % (x[0], x[1]))
-            send_map[x] = {}
-            send_map[x]['send_at'] = datetime.now()
-            send_map[x]['diff'] = x[1]
-            plt_qushi(x[0])
-        elif x[0] in send_map:
-            if (now - timedelta(minutes=2)) < send_map[x]['send_at'] or \
-                    (x[1] - send_map[x]['diff'] > STEP_AMOUNT):
-                plt_qushi(x[0])
-                msg.append('%s, %s' % (x[0], x[1]))
-                send_map[x]['send_at'] = datetime.now()
-                send_map[x]['diff'] = x[1]
+    for x in res:
+        msg.append('%s, %s' % (x.code, x.amount))
+        plt_qushi(x.code)
     send_msg('\n'.join(msg))
 
     with open(fname, 'w') as f:
@@ -122,37 +93,53 @@ def calc(data):
 
 def calc_fun():
     while True:
-        now = datetime.now()
-        count = 0
+        now = datetime.datetime.now()
+        kp = now.replace(hour=9, minute=25)
+        lunch = now.replace(hour=11, minute=30)
+        kp2 = now.replace(hour=13, minute=0)
+        three = now.replace(hour=15, minute=1)
+
         if not easyutils.is_holiday(now.strftime('%Y%m%d')):
-            sql_cmd = 'select sum(count*price) as s ,type, code from ' \
-                      'stock_dadan_history where date="%s" group by ' \
-                      'type, code order by code, s desc;' \
-                      % date.today().strftime('%Y-%m-%d')
-            if count % 30 == 0:
-                print('sleep in sql %s' % datetime.now())
-            count += 1
-            try:
-                while now < KP:
-                    time.sleep(2)
-                    now = datetime.now()
-
-                while LUNCH < now < KP2:
-                    time.sleep(2)
-                    now = datetime.now()
-                if now > THREE:
-                    time.sleep(600)
-
-                df_mysql = pd.read_sql(sql_cmd, con=get_engine())
-                calc(df_mysql)
-                time.sleep(5)
-            except Exception as e:
-                print(e)
-                continue
-        else:
-            print('now %s is holiday, sleeping ...' % now)
-            time.sleep(24 * 3600)
+            previous_day = now.strftime('%d')
             count = 0
+            while True:
+                now = datetime.datetime.now()
+                if count % 30 == 0:
+                    print('now is %s, count is %s' % (time.ctime(), count))
+                count += 1
+
+                while now < kp:
+                    time.sleep(10)
+                    now = datetime.datetime.now()
+                    kp = now.replace(hour=9, minute=25)
+
+                while lunch < now < kp2:
+                    time.sleep(10)
+                    now = datetime.datetime.now()
+                    lunch = now.replace(hour=11, minute=30)
+                    kp2 = now.replace(hour=13, minute=0)
+
+                while now > three:
+                    print('now is %s, not holiday' % (time.ctime()))
+                    time.sleep(60)
+                    now = datetime.datetime.now()
+                    three = now.replace(hour=15, minute=1)
+
+                current_day = now.strftime('%d')
+                if current_day != previous_day:
+                    break
+                # TODO 某一刻记录下 qushi
+                calc()
+
+                time.sleep(5)
+
+        else:
+            while True:
+                now = datetime.datetime.now()
+                print('now %s is holiday, sleeping ...' % now)
+                time.sleep(60)
+                if not easyutils.is_holiday(now.strftime('%Y%m%d')):
+                    break
 
 
 if __name__ == '__main__':

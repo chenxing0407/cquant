@@ -2,7 +2,7 @@
 
 from cquant.utils.config import cfg
 
-from sqlalchemy import Column, String, Date, DateTime, Float, Integer, Time
+from sqlalchemy import Column, String, Date, DateTime, Float, Integer, Time, TIMESTAMP
 import sqlalchemy
 
 from sqlalchemy.ext.declarative import declarative_base
@@ -92,6 +92,15 @@ class StockDaDantHistory(Base):
     low = Column(Float)
 
 
+
+class StockDaDantHistory2(Base):
+    __tablename__ = 'stock_dadan_history2'
+    id = Column(Integer, primary_key=True)
+    code = Column(String(10))
+    amount = Column(Float)
+    timestamp = Column(DateTime)
+
+
 class DanDanQushi(Base):
     __tablename__ = 'stock_dadan_qushi'
     id = Column(Integer, primary_key=True)
@@ -109,3 +118,15 @@ class EstProfit(Base):
     count = Column(Integer)
     valve = Column(Float)
     profit = Column(Float)
+
+
+if __name__ == '__main__':
+    ss = get_session()
+    import time
+    # dd2 = StockDaDantHistory2(code='000001', amount=100.0)
+
+    dd2 = StockDaDantHistory2(code='000001', amount=-100.0,
+                              timestamp='2017-11-10 12:12:20')
+    ss.begin()
+    ss.add(dd2)
+    ss.commit()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from cquant.utils.config import cfg
-from cquant.db.model import get_session, StockDaDantHistory
+from cquant.db.model import get_session,
 from cquant.est.dadan_history_calc import get_cand_code
 
 import easyquotation
@@ -17,12 +17,11 @@ VALVE = cfg['dadan_valve']
 
 # t 类型（B/S)
 # diff 成交量差额
-def add_to_db(code, t, diff, st):
+def add_to_db(code, diff, st):
     sess = get_session()
-    dadan = StockDaDantHistory(code=code, time=st['time'], date=st['date'],
-                               name=st['name'],
-                               type=t, count=diff, price=st['now'],
-                               high=st['high'], low=st['low'])
+    dadan = StockDaDantHistory2(code=code, timestamp = '%s %s' % (st['date'],
+                                                                  st['time']),
+                               amount=diff*st['now'])
     sess.begin()
     sess.add(dadan)
     sess.commit()
@@ -81,15 +80,19 @@ def get_real(candi):
                 while now < kp:
                     time.sleep(10)
                     now = datetime.datetime.now()
+                    kp = now.replace(hour=9, minute=25)
 
                 while lunch < now < kp2:
                     time.sleep(10)
                     now = datetime.datetime.now()
+                    lunch = now.replace(hour=11, minute=30)
+                    kp2 = now.replace(hour=13, minute=0)
 
                 while now > three:
-                    print('now is %s， not holiday' % (time.ctime(), count))
+                    print('now is %s, not holiday' % (time.ctime()))
                     time.sleep(60)
                     now = datetime.datetime.now()
+                    three = now.replace(hour=15, minute=1)
 
                 current_day = now.strftime('%d')
                 if current_day != previous_day:
@@ -119,35 +122,35 @@ def get_real(candi):
                                     if st['now'] == st['buy']:
                                         if st['buy'] > last_check[st['name']]['buy']:
                                             if st['now'] * diff > VALVE:  # 发出买入指令
-                                                add_to_db(code, 'B', diff, st)
+                                                add_to_db(code, diff, st)
                                         else:
                                             if st['now'] * diff > VALVE:  # 发出卖出指令
-                                                add_to_db(code, 'S', diff, st)
+                                                add_to_db(code, -diff, st)
 
                                     if st['now'] == st['sell']:
                                         if st['now'] * diff > VALVE:  # 发出买入指令
-                                            add_to_db(code, 'B', diff, st)
+                                            add_to_db(code, diff, st)
 
                                 # 价格减少
                                 elif st['now'] < last_check[st['name']]['now']:
                                     if st['now'] == st['sell']:
                                         if st['sell'] < last_check[st['name']]['sell']:
                                             if st['now'] * diff > VALVE:  # 发出卖出指令
-                                                add_to_db(code, 'S', diff, st)
+                                                add_to_db(code, -diff, st)
 
                                         else:
                                             pass
                                     else:
                                         # todo now == buy
                                         if st['now'] * diff > VALVE:  # 发出卖出指令
-                                            add_to_db(code, 'S', diff, st)
+                                            add_to_db(code, -diff, st)
 
                                 # 价格增加
                                 else:
                                     if not (st['sell'] <
                                             last_check[st['name']]['sell']):
                                         if st['now'] * diff > VALVE:  # 发出买入指令
-                                            add_to_db(code, 'B', diff, st)
+                                            add_to_db(code, diff, st)
                                     else:
                                         pass
 
