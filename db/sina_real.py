@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from cquant.utils.config import cfg
-from cquant.db.model import get_session,
+from cquant.db.model import get_session, StockDaDantHistory2
 from cquant.est.dadan_history_calc import get_cand_code
 
 import easyquotation
@@ -19,9 +19,9 @@ VALVE = cfg['dadan_valve']
 # diff 成交量差额
 def add_to_db(code, diff, st):
     sess = get_session()
-    dadan = StockDaDantHistory2(code=code, timestamp = '%s %s' % (st['date'],
-                                                                  st['time']),
-                               amount=diff*st['now'])
+    dadan = StockDaDantHistory2(code=code, timestamp='%s %s' %
+                                                     (st['date'], st['time']),
+                                amount=diff*st['now'])
     sess.begin()
     sess.add(dadan)
     sess.commit()

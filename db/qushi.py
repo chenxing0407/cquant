@@ -1,94 +1,58 @@
 # -*- coding: utf-8 -*-
+import traceback
+
 import easyutils
-from cquant.db.model import DanDanQushi, get_session, get_engine
-from cquant.utils.send_msg import send_msg
+from cquant.db.model import get_session
 from cquant.utils.config import cfg
 
 
-import pandas as pd
 import time
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
-
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-
+import datetime
+from influxdb import InfluxDBClient
 
 VALVE_AMOUNT = cfg['qushi_valve_amount']
 STEP_AMOUNT = cfg['qushi_step_amount']
 
-NOW = datetime.now()
-KP = NOW.replace(hour=9, minute=25)
-LUNCH = NOW.replace(hour=11, minute=30)
-KP2 = NOW.replace(hour=13, minute=0)
-TEN = NOW.replace(hour=10, minute=15)
-THREE = NOW.replace(hour=15, minute=1)
 
-send_map = {}
+RECORD_COUNT = 0
 
 
-S1 = '''<html>
-<meta http-equiv="refresh" content="5">
-<head>
-<body>
-
-<table border="1">
-
-'''
-S2 = '''
-
-</table>
-</body>
-</html>
-'''
-
-fname = cfg['html_file_name']
+def send_to_influxdb():
+    cl = InfluxDBClient(host=cfg['influx_db_url'], database='stock')
+    n1 = datetime.datetime.now().replace(hour=0)
+    n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
+    ss = get_session()
+    cmd = 'select * from stock_dadan_qushi2  where timestamp >"%s" order by id desc limit %d' % (n1str, RECORD_COUNT)
+    res = ss.execute(cmd)
+    points = []
+    for x in res:
+        p = {
+            "measurement": "qushi",
+            "tags": {
+                "code": x.code,
+            },
+            "time": x.timestamp,
+            "fields": {
+                "value": x.amount
+            }
+        }
+        points.append(p)
+    cl.write_points(points)
 
 
 def save_qushi():
-    n1 = datetime.now().replace(hour=0)
+    n1 = datetime.datetime.now().replace(hour=0)
     n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
     ss = get_session()
-    cmd = 'insert into stock_dadan_qushi2(code, amount) select code, sum(amount) from ' \
+    global RECORD_COUNT
+    count_cmd = 'select distinct(code) as count from stock_dadan_history2 where timestamp >"%s"' % n1str
+    res = ss.execute(count_cmd)
+    RECORD_COUNT = len(res.fetchall())
+    cmd = 'insert into stock_dadan_qushi2(code, amount,timestamp) select code, sum(amount),date_add(current_timestamp, interval 8 hour) from ' \
           'stock_dadan_history2 where timestamp >"%s" group by code' % n1str
     ss.execute(cmd)
 
-
-def plt_qushi(code):
-    n1 = datetime.now().replace(hour=0)
-    n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
-    sql_cmd = 'select timestamp, amount from stock_dadan_qushi2 ' \
-              'where code="%s" and timestamp >"%s"  ' \
-              % (code, n1str)
-    qs = pd.read_sql(sql_cmd, con=get_engine())
-    pd.Series(data=list(qs.amount), index=qs.timestamp).plot()
-    plt.savefig(cfg['image_save_path'] +'%s.png' % code)
-    plt.close()
-
-
-def calc():
-    save_qushi()
-
-    valve = 1
-    n1 = datetime.now().replace(hour=0)
-    n1str = n1.strftime('%Y-%m-%d %H-%M-%S')
-    ss = get_session()
-    cmd = 'select code, sum(amount) as amount from stock_dadan_qushi2 where timestamp >"%s" and amount >%f group by code order by amount' % (n1str, valve)
-    res = ss.execute(cmd)
-    msg = []
-    for x in res:
-        msg.append('%s, %s' % (x.code, x.amount))
-        plt_qushi(x.code)
-    send_msg('\n'.join(msg))
-
-    with open(fname, 'w') as f:
-        f.write(S1)
-        s = '<tr> <td>%s </td><td><img width=120 src=%s></img></td></tr>'
-        for a in msg:
-            f.write(s % (a, a.split(',')[0] + '.png'))
-        f.write(S2)
+    send_to_influxdb()
 
 
 def calc_fun():
@@ -129,17 +93,24 @@ def calc_fun():
                 if current_day != previous_day:
                     break
                 # TODO 某一刻记录下 qushi
-                calc()
+                try:
+                    save_qushi()
+                except Exception as e:
+                    print(e)
+                    print(traceback.format_exc())
+                    time.sleep(5)
+                    continue
 
                 time.sleep(5)
 
         else:
             while True:
                 now = datetime.datetime.now()
-                print('now %s is holiday, sleeping ...' % now)
-                time.sleep(60)
                 if not easyutils.is_holiday(now.strftime('%Y%m%d')):
                     break
+                else:
+                    print('now %s is holiday, sleeping ...' % now)
+                    time.sleep(60)
 
 
 if __name__ == '__main__':
