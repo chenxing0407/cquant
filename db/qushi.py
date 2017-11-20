@@ -31,7 +31,7 @@ def send_to_influxdb():
             "tags": {
                 "code": x.code,
             },
-            "time": x.timestamp,
+            "time": x.timestamp.strftime('%Y-%m-%d T %H:%M:%SZ'),
             "fields": {
                 "value": x.amount
             }
