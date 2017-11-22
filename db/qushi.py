@@ -87,7 +87,7 @@ def calc_fun():
                     print('now is %s, not holiday' % (time.ctime()))
                     time.sleep(60)
                     now = datetime.datetime.now()
-                    three = now.replace(hour=15, minute=1)
+                    three = now.replace(day=now.day, hour=15, minute=1)
 
                 current_day = now.strftime('%d')
                 if current_day != previous_day:
